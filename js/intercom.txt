@@ -1,0 +1,93 @@
+// Secure Intercom initialization with JWT authentication
+(async function initializeIntercom() {
+  try {
+    // Default settings for fallback
+    const defaultSettings = {
+      api_base: "https://api-iam.intercom.io",
+      app_id: "mthemgos"
+    };
+
+    try {
+      // Fetch secure Intercom token from server (no auth required - using hardcoded user)
+      const response = await fetch('http://localhost:5000/api/intercom-token', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Use hardcoded user settings with JWT token
+        window.intercomSettings = {
+          ...defaultSettings,
+          name: data.user.name,
+          user_id: data.user.user_id,
+          email: data.user.email,
+          created_at: data.user.created_at,
+          user_hash: data.token // Use JWT token as user_hash for security
+        };
+      } else {
+        // If server is not available, fall back to default settings
+        console.warn('Failed to fetch Intercom token, using default settings');
+        window.intercomSettings = defaultSettings;
+      }
+    } catch (error) {
+      console.error('Error fetching Intercom token:', error);
+      // Fall back to default settings on error
+      window.intercomSettings = defaultSettings;
+    }
+
+    // Load Intercom widget
+    loadIntercomWidget();
+    
+  } catch (error) {
+    console.error('Error initializing Intercom:', error);
+    // Fall back to basic settings if everything fails
+    window.intercomSettings = {
+      api_base: "https://api-iam.intercom.io",
+      app_id: "mthemgos"
+    };
+    loadIntercomWidget();
+  }
+})();
+
+// Function to load the Intercom widget
+function loadIntercomWidget() {
+  var w = window;
+  var ic = w.Intercom;
+  if (typeof ic === "function") {
+    ic('reattach_activator');
+    ic('update', w.intercomSettings);
+  } else {
+    var d = document;
+    var i = function() { i.c(arguments); };
+    i.q = [];
+    i.c = function(args) { i.q.push(args); };
+    w.Intercom = i;
+    var l = function() {
+      var s = d.createElement('script');
+      s.type = 'text/javascript';
+      s.async = true;
+      s.src = 'https://widget.intercom.io/widget/' + w.intercomSettings.app_id;
+      var x = d.getElementsByTagName('script')[0];
+      x.parentNode.insertBefore(s, x);
+    };
+    if (document.readyState === 'complete') {
+      l();
+    } else if (w.attachEvent) {
+      w.attachEvent('onload', l);
+    } else {
+      w.addEventListener('load', l, false);
+    }
+  }
+}
+
+// Function to update Intercom when user authentication status changes
+window.updateIntercomAuth = function() {
+  // Re-initialize Intercom when auth status changes
+  setTimeout(() => {
+    window.location.reload(); // Simple approach - reload to reinitialize
+  }, 100);
+};
